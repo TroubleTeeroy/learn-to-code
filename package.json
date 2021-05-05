@@ -1,0 +1,25 @@
+{
+  "name": "learn-to-code",
+  "version": "1.0.0",
+  "description": "Scovil's course on full-stack software using Docker, PostgreSQL, Node.js & React",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs"
+  },
+  "scripts": {
+    "test": "jest"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sscovil/learn-to-code.git"
+  },
+  "author": "Troy P Miller",
+  "license": "UNLICENSED",
+  "bugs": {
+    "url": "https://github.com/sscovil/learn-to-code/issues"
+  },
+  "homepage": "https://github.com/sscovil/learn-to-code#readme",
+  "devDependencies": {
+    "jest": "^26.6.3"
+  }
+}

@@ -1,0 +1,29 @@
+version: "3.7"
+
+services:
+  database:
+    image: postgres:13-alpine
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=mydbuser
+      - POSTGRES_PASSWORD=mydbpassword
+      - POSTGRES_DB=mydbname
+    healthcheck:
+      test: pg_isready -U postgres
+      interval: 5s
+      retries: 10
+      timeout: 5s
+    ports:
+      - "5432:5432"
+    volumes:
+      - .:/data/db
+
+  pgweb:
+    image: sosedoff/pgweb
+    restart: always
+    environment:
+      - DATABASE_URL=postgres://mydbuser:mydbpassword@database:5432/mydbname?sslmode=disable
+    ports:
+      - "8081:8081"
+    links:
+      - database:database

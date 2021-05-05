@@ -7,16 +7,16 @@ material. Web links are provided throughout to further explain key terms and tec
 
 Using this document, the learner will:
 
-1. Fork and clone this repository using [Git]
-1. Install [Docker Desktop] for Windows or Mac
-1. Install an [IDE] such as [Visual Studio Code] or [WebStorm]
-1. Run a [PostgreSQL] database server in a [virtual machine] using [Docker Compose]
-1. Run [PGWeb], a web-based [PostgreSQL] browser, in a [virtual machine] using [Docker Compose]
-1. Create a database table in [PostgreSQL] using [SQL]
-1. Install [Node.js] & Node Package Manager ([NPM])
-1. Initialize a [Node.js] package by creating a [package.json] file
-1. Install a package as a dependency using [NPM]
-1. Build a simple [web server] and [REST] endpoint using [Node.js]
+----------1. Fork and clone this repository using [Git]
+----------1. Install [Docker Desktop] for Windows or Mac
+----------1. Install an [IDE] such as [Visual Studio Code] or [WebStorm]
+----------1. Run a [PostgreSQL] database server in a [virtual machine] using [Docker Compose]
+----------1. Run [PGWeb], a web-based [PostgreSQL] browser, in a [virtual machine] using [Docker Compose]
+----------1. Create a database table in [PostgreSQL] using [SQL]
+----------1. Install [Node.js] & Node Package Manager ([NPM])
+----------1. Initialize a [Node.js] package by creating a [package.json] file
+----------1. Install a package as a dependency using [NPM]
+----------1. Build a simple [web server] and [REST] endpoint using [Node.js]
 1. Write unit tests using [Jest]
 1. Create a Linux web server using [Docker] & [Docker Compose]
 1. Read the contents of a file using [fs.readFile]
