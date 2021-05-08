@@ -19,6 +19,7 @@ Using this document, the learner will:
 ----------1. Build a simple [web server] and [REST] endpoint using [Node.js]
 1. Write unit tests using [Jest]
 1. Create a Linux web server using [Docker] & [Docker Compose]
+1. Set up a [reverse proxy server] using [NGINX]
 1. Read the contents of a file using [fs.readFile]
 1. Install and configure [node-postgres] using [NPM]
 1. Create a database migration module using [fs.readFile] and [node-postgres]
@@ -31,6 +32,7 @@ Using this document, the learner will:
 1. Create a user profile web page that requires [authentication] to access
 1. Create a user admin page that requires [authorization] to access
 
+...and more!
 
 ## Before we get started...
 
@@ -104,9 +106,10 @@ those changes up to your `origin` copy to keep it in sync with your `local` copy
 > you to go back to previous versions of your code. Throughout this lesson, try and remember to commit your changes and
 > push them up to your `origin` copy to keep it in sync.
 
-From there, you can create a [pull request] to the original `upstream` copy and, if the owner or maintainer of that
-repo approves, they will [git merge] your changes (or grant you permission to do so) and, at that point, all three
-copies will be up to date.
+When you make changes to your repo, you can create a [pull request] to the original `upstream` copy and, if the owner
+or maintainer of that repo approves, they will [git merge] your changes (or grant you permission to do so) and, at that
+point, all three copies will be in sync. Most [open source] projects will have some sort of guide that explains how to
+go about contributing code changes.
 
 For this project, you do not need to worry about making a [pull request]. This tutorial will be used by others, so your
 changes will never get merged into the original `upstream` copy. However, you should occasionally [git pull] from the
@@ -145,9 +148,9 @@ developers to write code more efficiently. You can write code in a plain old tex
 can build a house with a hammer and hand saw, but if you are serious about becoming a software developer you should
 learn the tools of the trade.
 
-[Visual Studio Code] is free and very popular among web developers. I personally use [IntelliJ Ultimate Edition], which
-is a bit pricey but has plugins for every programming language. [WebStorm] is made by the same company (JetBrains), but
-it only supports [JavaScript] and frameworks like [Node.js], [React], and [Vue.js].
+[Visual Studio Code] is free and very popular among web developers. I personally use [IntelliJ], which is a bit pricey
+but has plugins for every programming language. [WebStorm] is made by the same company (JetBrains), but it only supports
+[JavaScript] and frameworks like [Node.js], [React], and [Vue.js].
 
 
 ## 4. Run a [PostgreSQL] database server in a virtual machine using [Docker Compose]
@@ -170,7 +173,7 @@ services:
       - POSTGRES_PASSWORD=mydbpassword
       - POSTGRES_DB=mydbname
     healthcheck:
-      test: pg_isready -U ${POSTGRES_USER}
+      test: pg_isready -U mydbuser
       interval: 5s
       retries: 10
       timeout: 5s
@@ -371,7 +374,7 @@ Let's install [PGWeb] by adding another [Docker] container to our `docker-compos
 ```yaml
   pgweb:
     image: sosedoff/pgweb
-    restart: always
+    restart: unless-stopped
     environment:
       - DATABASE_URL=postgres://mydbuser:mydbpassword@database:5432/mydbname?sslmode=disable
     ports:
@@ -381,7 +384,7 @@ Let's install [PGWeb] by adding another [Docker] container to our `docker-compos
 ```
 
 Be sure the indentation is correct! Indentation has meaning in [YAML] files. The service name `pgweb` should be at the
-same indentation level as `databse` and one level deeper than `services`.
+same indentation level as `database` and one level deeper than `services`.
 
 Putting it all together, your `docker-compose.yml` file should now look like this:
 
@@ -397,7 +400,7 @@ services:
       - POSTGRES_PASSWORD=mydbpassword
       - POSTGRES_DB=mydbname
     healthcheck:
-      test: pg_isready -U postgres
+      test: pg_isready -U mydbuser
       interval: 5s
       retries: 10
       timeout: 5s
@@ -408,7 +411,7 @@ services:
 
   pgweb:
     image: sosedoff/pgweb
-    restart: always
+    restart: unless-stopped
     environment:
       - DATABASE_URL=postgres://mydbuser:mydbpassword@database:5432/mydbname?sslmode=disable
     ports:
@@ -435,7 +438,7 @@ and other settings in the `database` service configuration:
 
 * `mydbuser` should match the value of the `POSTGRES_USER` environment variable
 * `mydbpassword` should match the value of the `POSTGRES_PASSWORD` environment variable
-* `database` should match the name of container that uses the [postgres:13-alpine] image
+* `database` should match the name of the container that uses the [postgres:13-alpine] image
 * `5432` should match the database container host port
 * `mydbname` should match the value of the `POSTGRES_DB` environment variable
 
@@ -462,7 +465,7 @@ on your local 'host' computer will be forwarded to port `8081` on the virtual we
 
 Now open your favorite web browser and make a request to port `8081` by visiting:
 
-http://localhost:8081/
+http://localhost:8081
 
 If everything is configured correctly, you should see the [PGWeb] interface.
 
@@ -639,6 +642,8 @@ any version of [Node.js] and switch between them as needed when working on multi
 Whichever method you choose, install [Node.js] v14.x which is the current Long Term Support ([LTS]) version at the time
 of this writing. Doing so will also automatically install Node Package Manager ([NPM]) v6.x, which will be used to
 install other libraries we will use.
+
+> **NOTE:** If you are using [WebStorm] or [IntelliJ], you will want to [enable coding assistance for Node.js].
 
 ### About version numbers
 
@@ -829,12 +834,806 @@ Here are some ways you can mitigate dependency risk:
 
 ## 10. Build a simple [web server] and [REST] endpoint using [Node.js]
 
-TODO
+Up to this point, almost everything we have done has been to set up our local development environment and configure the
+database and tools we will use to build our application. Now we are ready to start writing some code.
+
+The first thing we will build is a simple [web server]. To keep our code organized, we will create a directory in our
+project folder called `src` (a standard abbreviation for 'source', as in [source code]).
+
+You can create the directory in your [IDE] from the `File` menu, or from the terminal using the command:
+
+```shell
+mkdir src
+```
+
+Then, inside the `src` directory, create a file called `server.js`. Again, you can do this from the [IDE] `File` menu,
+or from the terminal using:
+
+```
+echo > src/server.js
+```
+
+If you are creating `server.js` using the [IDE] `File` menu, just be sure it ends up inside the `src` directory and not
+alongside it in the root directory. Your project folder should look like this:
+
+```
+learn-to-code/
+├─ node_modules/
+├─ src/
+│  └─ server.js
+├─ .gitignore
+├─ package.json
+├─ package-lock.json
+└─ README.md
+```
+
+Open `server.js` in your [IDE] and paste in the following code:
+
+```javascript
+const http = require('http')
+
+const host = process.env.APP_HOST || 'localhost'
+const port = process.env.APP_PORT || 8080
+
+const router = async (req, res) => {
+    let body
+    let code
+
+    if ('/ping' === req.url) {
+        body = {status: 'healthy'}
+        code = 200
+    } else {
+        body = {error: 'Resource not found'}
+        code = 404
+    }
+
+    res.setHeader('Content-Type', 'application/json')
+    res.writeHead(code)
+    res.end(JSON.stringify(body))
+}
+
+const server = http.createServer(router)
+
+server.on('listening', () => {
+    console.log(`Server listening at http://${host}:${port}`)
+})
+
+try {
+    server.listen(port, host)
+} catch(err) {
+    console.error(err, 'Error starting server')
+}
+```
+
+There is a lot going on here, so let's break it down.
+
+```javascript
+const http = require('http')
+```
+
+At the top of the file, we import the [Node.js http] module and assign it to a constant (or [const]) called `http`.
+Although the module is called 'http', we could just as easily name our constant something else, like `h` or `foo`, and
+it would work the same way. Think of these names as aliases we assign to data, [objects] or [functions].
+
+```javascript
+const host = process.env.APP_HOST || 'localhost'
+const port = process.env.APP_PORT || 8080
+```
+
+Here, we declare two more constants: `host` and `port`. This time, instead of importing their values from a module, we
+assign them each the value of an [environment variable] (`APP_HOST` and `APP_PORT`, respectively). We also use the
+[logical OR] operator `||` to assign default values, in case the environment variables are [undefined].
+
+```javascript
+const router = async (req, res) => {
+    let body
+    let code
+
+    if ('/ping' === req.url) {
+        body = {status: 'healthy'}
+        code = 200
+    } else {
+        body = {error: 'Resource not found'}
+        code = 404
+    }
+
+    res.setHeader('Content-Type', 'application/json')
+    res.writeHead(code)
+    res.end(JSON.stringify(body))
+}
+```
+
+Here, we declare a constant called `router` and define it as an [async function] (more on this later) using an
+[arrow function] expression. This function accepts two arguments, `req` and `res`, which are abbreviations for 'request'
+(an [http.IncomingMessage] object) and 'response' (an [http.ServerResponse] object).
+
+Let's examine the code inside the `router` function...
+
+```javascript
+    let body
+    let code
+```
+
+The `router` function starts by declaring two variables using the [let] statement, which differs from [const] in that
+the value of a [const] cannot be changed (thus it is constant). Since we will assign different values to the `body` and
+`code` variables based on [conditional logic], we declare them using [let].
+
+```javascript
+    if ('/ping' === req.url) {
+        body = {status: 'healthy'}
+        code = 200
+    } else {
+        body = {error: 'Resource not found'}
+        code = 404
+    }
+```
+
+Using an [if...else] statement, we compare the [string] value `'/ping'` to the value of [req.url] which, as the name
+implies, is the requested URL path. If our web server is listening at http://localhost:8080 and someone visits the URL
+http://localhost:8080/ping then the value of `req.url` would be `'/ping'` and this condition would be true.
+
+```javascript
+    res.setHeader('Content-Type', 'application/json')
+    res.writeHead(code)
+    res.end(JSON.stringify(body))
+```
+
+Then we call some [http.ServerResponse] functions: [setHeader], [writeHead], and [end].
+
+* `res.setHeader` is used to set the [Content-Type] response header, indicating that the [response body] will be in
+  [JSON] format.
+* `res.writeHead` sends a [response header] to the request with a 3-digit HTTP status code, like `200` (Success) or 
+  `404` (Not Found).
+* `res.end` sends our `body` object, which we convert to a [JSON] string using [JSON.stringify], then signals to the
+  server that all response headers and body have been sent and that the server should consider this request complete.
+
+The `router` function will serve as a _request listener_, meaning it will be called whenever our [http.Server] receives
+an HTTP request.
+
+```javascript
+const server = http.createServer(router)
+```
+
+Here, we pass the `router` function as a request listener to the [http.createServer] function which, as you may have
+guessed, creates an [http.Server] object. We assign that object to a constant called `server`.
+
+Our `server` object is an instance of the [http.Server] class, which is a type of [EventEmitter]. This means that it
+will emit events whenever certain things happen. It also means that you can instruct `server` to listen for certain
+events and, when they occur, run a function (called an _event handler_) to perform a desired action.
+
+```javascript
+server.on('listening', () => {
+    console.log(`Server listening at http://${host}:${port}`)
+})
+```
+
+Here we call the [server.on] function and pass it an event handler. When the server begins listening for incoming
+requests, it emits a [listening] event that triggers our event handler, which then calls [console.log] and logs a
+message informing us that the server is ready.
+
+```javascript
+try {
+    server.listen(port, host)
+} catch(err) {
+    console.error(err, 'Error starting server')
+}
+```
+
+Finally, we call the [server.listen] function with the `port` and `host` constants we defined earlier. If successful,
+it will emit the [listening] event and trigger our event handler. However, if it throws an error, our [try...catch]
+statement will catch the error and call [console.error] to log the error details and inform us what went wrong.
+
+### Run your Node.js application
+
+To run your web server, open the terminal and run the following command from your project folder:
+
+```shell
+node src/server.js
+```
+
+You should see the success message from your [listening] event handler:
+
+```shell
+Server listening at http://localhost:8080
+```
+
+If you see this error instead:
+
+```shell
+Error: listen EADDRINUSE: address already in use 127.0.0.1:8080
+    at Server.setupListenHandle [as _listen2] (net.js:1318:16)
+    at listenInCluster (net.js:1366:12)
+    at GetAddrInfoReqWrap.doListen [as callback] (net.js:1503:7)
+    at GetAddrInfoReqWrap.onlookup [as oncomplete] (dns.js:69:8)
+Emitted 'error' event on Server instance at:
+    at emitErrorNT (net.js:1345:8)
+    at processTicksAndRejections (internal/process/task_queues.js:80:21) {
+  code: 'EADDRINUSE',
+  errno: -48,
+  syscall: 'listen',
+  address: '127.0.0.1',
+  port: 8080
+}
+```
+
+...that means some other program is already listening on port `8080`. You can stop the other program (if you know how
+and if it is safe to do so), or you can change the `port` by setting the `APP_PORT` [environment variable]:
+
+```shell
+APP_PORT=9000 node src/server.js
+```
+
+On Windows, which uses [PowerShell], you need to add `$env:` before the environment variable name:
+
+```shell
+$env:APP_PORT=9000 node src/server.js
+```
+
+When your server is listening, visit http://localhost:8080 in your web browser. You will see:
+
+```json
+{"error":"Resource not found"}
+```
+
+This is the `404` error response we defined in the `router` that gets returned for all URL paths except `/ping`.
+
+If you visit http://localhost:8080/ping you will see:
+
+```json
+{"status":"healthy"}
+```
+
+Congratulations! You just built a [web server]. Pretty soon, we'll make it do something useful.
+
+### Running and debugging Node.js in your IDE
+
+Going back to the terminal, you will notice that hitting enter does not run any commands you type. This is because the
+terminal is busy running your server, similar to when you run `docker-compose up` without the `-d` flag. In order to
+get your terminal back, you need to press `CTRL+C` to stop the server.
+
+Your [IDE] also provides a way to run (and debug) your application without using the terminal. Take some time to
+familiarize yourself with this feature. In particular, learn how the debugger works. It will become one of your most
+important tools.
+
+* [Visual Studio Code: Node.js debugging]
+* [WebStorm: Running and debugging Node.js]
 
 
 ## 11. Write unit tests using [Jest]
 
-TODO
+After we created a web server, we opened a web browser and tested it by visiting http://localhost:8080 and
+http://localhost:8080/ping. Why did we do that?
+
+We did it because we wanted to be sure our code worked.
+
+The way we did it is known as [manual testing]. It is very unreliable and inefficient. It is unreliable because it
+requires humans and humans are inconsistent. It is inefficient because it requires humans and humans are slow. Humans
+are the common denominator here. Machines are way better at this sort of thing. If you disagree, software development
+might not be the best career choice for you. :-)
+
+Let's write some automated tests, so we can deploy our code with confidence (and without those pesky humans).
+
+First, make sure you have installed [Jest] using `npm install -D jest` and verify that the test script in your
+[package.json] file runs the `jest` command:
+
+```json
+{
+  "name": "learn-to-code",
+  "version": "1.0.0",
+  "scripts": {
+    "test": "jest"
+  },
+  "devDependencies": {
+    "jest": "^26.6.3"
+  }
+}
+```
+
+In the `src` directory, alongside `server.js`, create a new file called `server.test.js`. Your project folder should
+now look like this:
+
+```
+learn-to-code/
+├─ node_modules/
+├─ src/
+│  ├─ server.js
+│  └─ server.test.js
+├─ .gitignore
+├─ package.json
+├─ package-lock.json
+└─ README.md
+```
+
+Open `server.test.js` and paste in the following code:
+
+```javascript
+describe('router', () => {
+  test('is a function', () => {
+    expect(typeof router === 'function').toBe(true)
+  })
+})
+```
+
+Now open your terminal and run:
+
+```shell
+npm test
+```
+
+You should see something like this:
+
+```shell
+> learn-to-code@1.0.0 test /path/to/repo/learn-to-code
+> jest
+
+ FAIL  src/server.test.js
+  router
+    ✕ is a function (2 ms)
+
+  ● router › is a function
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: true
+    Received: false
+
+      1 | test('is a function', () => {
+    > 2 |     expect(typeof router === 'function').toBe(true)
+        |                                          ^
+      3 | })
+      4 |
+
+      at Object.<anonymous> (src/server.test.js:2:42)
+
+Test Suites: 1 failed, 1 total
+Tests:       1 failed, 1 total
+Snapshots:   0 total
+Time:        0.608 s
+Ran all test suites.
+npm ERR! Test failed.  See above for more details.
+```
+
+This means our testing framework is working, but our test is failing. It is failing because `router` is undefined,
+because we did not import it from `server.js`.
+
+Add the following line to the top of `server.test.js`:
+
+```javascript
+const router = require('./server')
+```
+
+Then open `server.js` and add the following line to the bottom of the file:
+
+```javascript
+module.exports = router
+```
+
+Now our `server.js` module exports the `router` function, and our `server.test.js` module imports it.
+
+Running `npm test` again, you should see something like this:
+
+```shell
+> learn-to-code@1.0.0 test /path/to/repo/learn-to-code
+> jest
+
+ PASS  src/server.test.js
+  router
+    ✓ is a function (1 ms)
+
+Test Suites: 1 passed, 1 total
+Tests:       1 passed, 1 total
+Snapshots:   0 total
+Time:        0.611 s, estimated 1 s
+Ran all test suites.
+
+  ●  Cannot log after tests are done. Did you forget to wait for something async in your test?
+    Attempted to log "Server listening at http://localhost:8080".
+
+      27 | })
+      28 |
+    > 29 | try {
+         |           ^
+      30 |     server.listen(port, host)
+      31 | } catch(err) {
+      32 |     console.error(err, 'Error starting server')
+
+      at console.log (node_modules/@jest/console/build/CustomConsole.js:185:10)
+      at Server.<anonymous> (src/server.js:29:11)
+
+Jest did not exit one second after the test run has completed.
+
+This usually means that there are asynchronous operations that weren't stopped in your tests. Consider running Jest with `--detectOpenHandles` to troubleshoot this issue.
+```
+
+This time, our test passed. However, when we imported `server.js` all of the code in that module got executed, including
+the bit that starts the web server. [Jest] ran the tests but could not exit, and the server is still running.
+
+Hit `CTRL+C` to stop the server and get your terminal back.
+
+In order to fix this, we are going to have to [refactor] `server.js`. We still want it to start listening when we run
+it, but we also need to make sure it is testable. One way to do that is to change this:
+
+```javascript
+try {
+    server.listen(port, host)
+} catch(err) {
+    console.error(err, 'Error starting server')
+}
+```
+
+...to this:
+
+```javascript
+if (require.main === module) {
+    try {
+        server.listen(port, host)
+    } catch(err) {
+        console.error(err, 'Error starting server')
+    }
+}
+```
+
+By wrapping the code that starts the server in [conditional logic] that checks if `server.js` is the [main module], we
+can ensure it is only executed when `node src/server.js` is run and not when `server.js` is imported by another module.
+
+Now when you run `npm test`, you should see:
+
+```shell
+> learn-to-code@1.0.0 test /path/to/repo/learn-to-code
+> jest
+
+ PASS  src/server.test.js
+  router
+    ✓ is a function (1 ms)
+
+Test Suites: 1 passed, 1 total
+Tests:       1 passed, 1 total
+Snapshots:   0 total
+Time:        0.61 s, estimated 1 s
+Ran all test suites.
+```
+
+### Add code coverage
+
+Any non-trivial piece of software will have several code paths. Every [if...else] statement creates a fork in the road,
+where one path becomes two. As the code becomes more complex, two becomes four, four becomes eight, and so on. At some
+stage, [manual testing] of all possible code paths becomes infeasible.
+
+Automated tests, on the other hand, can be used to maintain high [code coverage] as complexity increases, reducing the
+risk of [bugs] going undetected. Well-written tests can also serve as a form of documentation, explaining by example
+how the software is intended to work.
+
+Let's add some more tests. We can go through them in detail and learn a lot along the way.
+
+```javascript
+const http = require('http')
+
+const router = require('./server')
+
+describe('router', () => {
+  let req
+  let res
+
+  beforeEach(() => {
+    req = new http.IncomingMessage()
+    res = new http.ServerResponse(req)
+    res.setHeader = jest.fn()
+    res.writeHead = jest.fn()
+    res.end = jest.fn()
+  })
+
+  test('is a function', () => {
+    expect(typeof router === 'function').toBe(true)
+  })
+
+  describe('receives a request for an unsupported URL path', () => {
+    beforeEach(() => {
+      req.url = '/invalid-url-path'
+    })
+
+    test('sets Content-Type header', async () => {
+      await router(req, res)
+      expect(res.setHeader).toHaveBeenCalledWith('Content-Type', 'application/json')
+    })
+
+    test('responds with 404 status code', async () => {
+      await router(req, res)
+      expect(res.writeHead).toHaveBeenCalledWith(404)
+    })
+
+    test('responds with a JSON string in the body', async () => {
+      await router(req, res)
+      expect(res.end).toHaveBeenCalledWith(JSON.stringify({error: 'Resource not found'}))
+    })
+  })
+
+  describe('receives a request for /ping', () => {
+    beforeEach(() => {
+      req.url = '/ping'
+    })
+
+    test('sets Content-Type header', async () => {
+      await router(req, res)
+      expect(res.setHeader).toHaveBeenCalledWith('Content-Type', 'application/json')
+    })
+
+    test('responds with 200 status code', async () => {
+      await router(req, res)
+      expect(res.writeHead).toHaveBeenCalledWith(200)
+    })
+
+    test('responds with a JSON string in the body', async () => {
+      await router(req, res)
+      expect(res.end).toHaveBeenCalledWith(JSON.stringify({status: 'healthy'}))
+    })
+  })
+})
+```
+
+There is a lot to unpack here. You should familiarize yourself with the various [Jest setup and teardown] functions,
+but for now just know that `describe` gives us a way to group tests together in the same [scope], and any function you
+pass to `beforeEach` gets called before each test is run.
+
+```javascript
+const http = require('http')
+
+const router = require('./server')
+
+describe('router', () => {
+  let req
+  let res
+
+  beforeEach(() => {
+    req = new http.IncomingMessage()
+    res = new http.ServerResponse(req)
+    res.setHeader = jest.fn()
+    res.writeHead = jest.fn()
+    res.end = jest.fn()
+  })
+```
+
+First, we import the [Node.js http] module to create [http.IncomingMessage] and [http.ServerResponse] objects that we
+can pass to our `router` function. Then we use [jest.fn] to replace `res.setHeader`, `res.writeHead`, and `res.end`
+with mock functions, so we can observe how they get used.
+
+```javascript
+  describe('receives a request for an unsupported URL path', () => {
+    beforeEach(() => {
+      req.url = '/invalid-url-path'
+    })
+
+    test('sets Content-Type header', async () => {
+      await router(req, res)
+      expect(res.setHeader).toHaveBeenCalledWith('Content-Type', 'application/json')
+    })
+
+    test('responds with 404 status code', async () => {
+      await router(req, res)
+      expect(res.writeHead).toHaveBeenCalledWith(404)
+    })
+
+    test('responds with a JSON string in the body', async () => {
+      await router(req, res)
+      expect(res.end).toHaveBeenCalledWith(JSON.stringify({error: 'Resource not found'}))
+    })
+  })
+```
+
+This group of tests is wrapped in another `describe` function that is nested inside the outer `describe`. That means
+the `beforeEach` function in the [scope] of the outer `describe` will be run first, followed by the `beforeEach` in the
+[scope] of the inner `describe`, then finally the test function will be run.
+
+Each test is an [async function] that calls `router` and awaits a response. The [await] operator is necessary because
+we defined our `router` as an [async function] and, as such, it returns a [Promise] right away but does not actually
+execute the code within the function yet. If we did not use the [await] operator when calling our `router` function,
+the test would finish running before the code inside the `router` function ever had a chance to execute and, as a
+result, our tests would fail.
+
+If you are wondering why we defined our `router` as an [async function], you are asking a very good question. In fact,
+in its current state, `router` does not need to be asynchronous. The reason we defined it that way is that it will
+eventually call out to other services like [PostgreSQL] and, when it does, it will need to wait some amount of time for
+a response.
+
+```javascript
+  describe('receives a request for /ping', () => {
+    beforeEach(() => {
+      req.url = '/ping'
+    })
+
+    test('sets Content-Type header', async () => {
+      await router(req, res)
+      expect(res.setHeader).toHaveBeenCalledWith('Content-Type', 'application/json')
+    })
+
+    test('responds with 200 status code', async () => {
+      await router(req, res)
+      expect(res.writeHead).toHaveBeenCalledWith(200)
+    })
+
+    test('responds with a JSON string in the body', async () => {
+      await router(req, res)
+      expect(res.end).toHaveBeenCalledWith(JSON.stringify({status: 'healthy'}))
+    })
+  })
+```
+
+The second group of tests is similar to the first, except that it tests the `/ping` route whereas the first group tests
+how the router handles an unrecognized route. In other words, this group of tests focuses on the `if` code path, and
+the other focuses on the `else` code path, when looking back at the `router` logic:
+
+```javascript
+    if ('/ping' === req.url) {
+        body = {status: 'healthy'}
+        code = 200
+    } else {
+        body = {error: 'Resource not found'}
+        code = 404
+    }
+```
+
+The last thing we should touch on is the [Jest expect] function. In most of these tests, we call `expect` with a mock
+function created in the outer `beforeEach` using [jest.fn]:
+
+```javascript
+  beforeEach(() => {
+    req = new http.IncomingMessage()
+    res = new http.ServerResponse(req)
+    res.setHeader = jest.fn()
+    res.writeHead = jest.fn()
+    res.end = jest.fn()
+  })
+```
+
+When we call `router` in these tests, we pass it that `res` object with the mocked functions. This allows us to use
+[toHaveBeenCalledWith] to assert that `router` called those functions and passed them the arguments we expect.
+
+### Make router a separate module
+
+Our `router` function is a well-defined unit of code that could easily be factored out of `server.js` as a separate
+module. This is a good idea because, as our application grows over time, this function will grow to handle more routes.
+Also, it would make a lot more sense if `server.js` exported its `server` object.
+
+Create a new file in the `src` directory called `router.js`, and another called `router.test.js`. Move all the code
+from `server.test.js` into `router.test.js` and update `router.test.js` to import `router` from the correct file:
+
+```javascript
+const router = require('./router')
+```
+
+When you are done, your project folder should look like this:
+
+```
+learn-to-code/
+├─ node_modules/
+├─ src/
+│  ├─ router.js
+│  ├─ router.test.js
+│  ├─ server.js
+│  └─ server.test.js
+├─ .gitignore
+├─ package.json
+├─ package-lock.json
+└─ README.md
+```
+
+Now cut the code that defines `router` out of `server.js` and paste it into `router.js`. Be sure to export `router` at
+the bottom of the file. It should look like this when you are done:
+
+```javascript
+const router = async (req, res) => {
+    let body;
+    let code;
+
+    if ('/ping' === req.url) {
+        body = {status: 'healthy'}
+        code = 200
+    } else {
+        body = {error: 'Resource not found'}
+        code = 404
+    }
+
+    res.setHeader('Content-Type', 'application/json')
+    res.writeHead(code)
+    res.end(JSON.stringify(body))
+}
+
+module.exports = router
+```
+
+In `server.js`, we can import `router` from `./router.js`. We should also make `server.js` export `server` so we can
+write tests for our web server. In the end, it should look like this:
+
+```javascript
+const http = require('http')
+
+const router = require('./router')
+
+const host = process.env.APP_HOST || 'localhost'
+const port = process.env.APP_PORT || 8080
+
+const server = http.createServer(router)
+
+server.on('listening', () => {
+    console.log(`Server listening at http://${host}:${port}`)
+})
+
+if (require.main === module) {
+    try {
+        server.listen(port, host)
+    } catch(err) {
+        console.error(err, 'Error starting server')
+    }
+}
+
+module.exports = server
+```
+
+Now we can add some tests to `server.test.js`:
+
+```javascript
+const server = require('./server')
+
+describe('server', () => {
+  let consoleLog
+
+  beforeEach(() => {
+    consoleLog = jest.spyOn(console, 'log')
+    consoleLog.mockImplementation(() => {})
+  })
+
+  afterEach(() => {
+    consoleLog.mockRestore()
+  })
+
+  test('logs to the console on listening event', (done) => {
+    const host = process.env.APP_HOST || 'localhost'
+    const port = process.env.APP_PORT || 8080
+
+    server.on('listening', () => {
+      expect(consoleLog).toHaveBeenCalledWith(`Server listening at http://${host}:${port}`)
+      done()
+    })
+    server.emit('listening')
+  })
+})
+```
+
+There are a couple of things to note here...
+
+```javascript
+  beforeEach(() => {
+    consoleLog = jest.spyOn(console, 'log')
+    consoleLog.mockImplementation(() => {})
+  })
+
+  afterEach(() => {
+    consoleLog.mockRestore()
+  })
+```
+
+Instead of creating a mock function using [jest.fn], we are modifying the existing global function [console.log] using
+[jest.spyOn] so we can tell when it has been called. We are also using [mockImplementation] to prevent it from logging
+to the console during our test by temporarily replacing it with a function that does nothing. We are then restoring it
+back to its original form after each test is run, by calling [mockRestore] in the `afterEach` function.
+
+```javascript
+  test('logs to the console on listening event', (done) => {
+    const host = process.env.APP_HOST || 'localhost'
+    const port = process.env.APP_PORT || 8080
+
+    server.on('listening', () => {
+      expect(consoleLog).toHaveBeenCalledWith(`Server listening at http://${host}:${port}`)
+      done()
+    })
+    server.emit('listening')
+  })
+```
+
+Here, we are using the `done` function that is passed as an argument to our test function. This is necessary because
+we need to wait for an event handler to be called and, like an [async function], the logic inside the event handler
+normally would not execute before we reached the end of the test function.
+
+Take some time to learn more about [testing asynchronous code]. We will be writing a lot of it.
 
 
 ## 12. Create a Linux web server using [Docker] & [Docker Compose]
@@ -842,73 +1641,87 @@ TODO
 TODO
 
 
-## 13. Read the contents of a file using [fs.readFile]
+## 13. Set up a [reverse proxy server] using [NGINX]
 
 TODO
 
 
-## 14. Install and configure [node-postgres] using [NPM]
+## 14. Read the contents of a file using [fs.readFile]
 
 TODO
 
 
-## 15. Create a database migration module using [fs.readFile] and [node-postgres]
+## 15. Install and configure [node-postgres] using [NPM]
 
 TODO
 
 
-## 16. Create a cryptographic one-way [hash] using [crypto.createHash]
+## 16. Create a database migration module using [fs.readFile] and [node-postgres]
 
 TODO
 
 
-## 17. Create a Command Line Interface ([CLI]) using [Node.js]
+## 17. Create a cryptographic one-way [hash] using [crypto.createHash]
 
 TODO
 
 
-## 18. Create a Data Access Object ([DAO]) for performing [CRUD] operations
+## 18. Create a Command Line Interface ([CLI]) using [Node.js]
 
 TODO
 
 
-## 19. Create [REST] endpoints for [user registration] and [authentication]
+## 19. Create a Data Access Object ([DAO]) for performing [CRUD] operations
 
 TODO
 
 
-## 20. Implement a [session management] strategy using an [HTTP cookie] header
+## 20. Create [REST] endpoints for [user registration] and [authentication]
 
 TODO
 
 
-## 21. Create a user login web page using [HTML] and [CSS]
+## 21. Implement a [session management] strategy using an [HTTP cookie] header
 
 TODO
 
 
-## 22. Create a user profile web page that requires [authentication] to access
+## 22. Create a user login web page using [HTML] and [CSS]
 
 TODO
 
 
-## 23. Create a user admin page that requires [authorization] to access
+## 23. Create a user profile web page that requires [authentication] to access
+
+TODO
+
+
+## 24. Create a user admin page that requires [authorization] to access
 
 TODO
 
 
 [Alpine Linux]: https://alpinelinux.org/
 [API]: https://en.wikipedia.org/wiki/API
-[Node.js assert]: https://nodejs.org/docs/latest-v14.x/api/all.html#assert_assert
+[arrow function]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Functions/Arrow_functions
+[async function]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/async_function
 [authentication]: https://en.wikipedia.org/wiki/Authentication
 [authorization]: https://en.wikipedia.org/wiki/Authorization
+[await]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/await
 [BitBucket]: https://bitbucket.org/product
+[bugs]: https://en.wikipedia.org/wiki/Software_bug
 [changelog]: https://en.wikipedia.org/wiki/Changelog
 [CLI]: https://en.wikipedia.org/wiki/Command-line_interface
 [clone your repo]: https://docs.github.com/en/github/creating-cloning-and-archiving-repositories/cloning-a-repository
+[code coverage]: https://en.wikipedia.org/wiki/Code_coverage
 [CommonJS]: https://en.wikipedia.org/wiki/CommonJS
 [CommonJS modules]: https://nodejs.org/docs/latest-v14.x/api/modules.html#modules_modules_commonjs_modules
+[conditional logic]: https://en.wikipedia.org/wiki/Conditional_(computer_programming)
 [configure an upstream remote]: https://docs.github.com/en/github/collaborating-with-issues-and-pull-requests/configuring-a-remote-for-a-fork
+[console.error]: https://developer.mozilla.org/en-US/docs/Web/API/Console/error
+[console.log]: https://developer.mozilla.org/en-US/docs/Web/API/Console/log
+[const]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/const
+[Content-Type]: https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Type
 [CREATE TABLE]: https://www.postgresql.org/docs/13/sql-createtable.html
 [CRUD]: https://en.wikipedia.org/wiki/Create,_read,_update_and_delete
 [crypto.createHash]: https://nodejs.org/dist/latest-v14.x/docs/api/all.html#crypto_crypto_createhash_algorithm_options
@@ -928,10 +1741,14 @@ TODO
 [Dockerfile]: https://docs.docker.com/engine/reference/builder/
 [ECMAScript]: https://en.wikipedia.org/wiki/ECMAScript
 [ECMAScript modules]: https://nodejs.org/docs/latest-v14.x/api/all.html#esm_modules_ecmascript_modules
+[enable coding assistance for Node.js]: https://www.jetbrains.com/help/webstorm/configuring-javascript-libraries.html#ws_js_libraries_node_js_core
+[end]: https://nodejs.org/dist/latest-v14.x/docs/api/all.html#http_response_end_data_encoding_callback
 [environment variable]: https://en.wikipedia.org/wiki/Environment_variable
+[EventEmitter]: https://nodejs.org/dist/latest-v14.x/docs/api/all.html#events_class_eventemitter
 [export]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/export
 [fs.readFile]: https://nodejs.org/dist/latest-v14.x/docs/api/all.html#fs_fs_readfile_path_options_callback
 [fork this repo]: https://docs.github.com/en/github/getting-started-with-github/fork-a-repo
+[functions]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide/Functions
 [Git]: https://git-scm.com/
 [git add]: https://git-scm.com/docs/git-add
 [git commit]: https://git-scm.com/docs/git-commit
@@ -946,7 +1763,13 @@ TODO
 [HTML]: https://en.wikipedia.org/wiki/HTML
 [HTTP]: https://en.wikipedia.org/wiki/Hypertext_Transfer_Protocol
 [HTTP cookie]: https://en.wikipedia.org/wiki/HTTP_cookie
+[HTTP status code]: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status
+[http.createServer]: https://nodejs.org/dist/latest-v14.x/docs/api/all.html#http_http_createserver_options_requestlistener
+[http.IncomingMessage]: https://nodejs.org/dist/latest-v14.x/docs/api/all.html#http_class_http_incomingmessage
+[http.Server]: https://nodejs.org/dist/latest-v14.x/docs/api/all.html#http_class_http_server
+[http.ServerResponse]: https://nodejs.org/dist/latest-v14.x/docs/api/all.html#http_class_http_serverresponse
 [IDE]: https://en.wikipedia.org/wiki/Integrated_development_environment
+[if...else]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/if...else
 [import]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/import
 [INSERT]: https://www.postgresql.org/docs/13/sql-insert.html
 [Install Docker Desktop (MacOS)]: https://docs.docker.com/docker-for-mac/install/
@@ -954,22 +1777,37 @@ TODO
 [install Node.js]: https://nodejs.org/en/download/
 [INTEGER]: https://www.postgresql.org/docs/13/datatype-numeric.html#DATATYPE-INT
 [Integrated Terminal (VSCode)]: https://code.visualstudio.com/docs/editor/integrated-terminal
-[IntelliJ Ultimate Edition]: https://www.jetbrains.com/idea/
+[IntelliJ]: https://www.jetbrains.com/idea/
 [Jasmine]: https://jasmine.github.io/index.html
 [JavaScript]: https://en.wikipedia.org/wiki/JavaScript
 [Jest]: https://jestjs.io/docs/getting-started
+[Jest expect]: https://jestjs.io/docs/using-matchers
+[Jest setup and teardown]: https://jestjs.io/docs/setup-teardown
+[jest.fn]: https://jestjs.io/docs/jest-object#jestfnimplementation
+[jest.spyOn]: https://jestjs.io/docs/jest-object#jestspyonobject-methodname
 [JSON]: https://en.wikipedia.org/wiki/JSON
+[JSON.parse]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/JSON/parse
+[JSON.stringify]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/JSON/stringify
 [JWT]: https://en.wikipedia.org/wiki/JSON_Web_Token
+[let]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/let
 [libpq connection URI]: https://www.postgresql.org/docs/13/libpq-connect.html#LIBPQ-CONNSTRING
+[listening]: https://nodejs.org/dist/latest-v14.x/docs/api/all.html#net_event_listening
+[logical OR]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Logical_OR
 [LTS]: https://en.wikipedia.org/wiki/Long-term_support
+[main module]: https://nodejs.org/docs/latest-v14.x/api/modules.html#modules_accessing_the_main_module
+[manual testing]: https://en.wikipedia.org/wiki/Manual_testing
 [Mocha]: https://mochajs.org/
-[Node.js]: https://nodejs.org/dist/latest-v14.x/docs/api/index.html
-[Node.js changelog]: https://github.com/nodejs/node/blob/master/CHANGELOG.md
-[Node.js http]: https://nodejs.org/dist/latest-v14.x/docs/api/all.html#http_http
-[node_modules]: https://docs.npmjs.com/cli/v6/configuring-npm/folders#node-modules
-[node-postgres]: https://node-postgres.com/
+[mockImplementation]: https://jestjs.io/docs/mock-function-api#mockfnmockimplementationfn
+[mockRestore]: https://jestjs.io/docs/mock-function-api#mockfnmockrestore
+[NGINX]: https://nginx.org/en/docs/beginners_guide.html
 [Node packages]: https://docs.npmjs.com/about-packages-and-modules
 [Node Version Manager for Windows]: https://github.com/coreybutler/nvm-windows
+[Node.js]: https://nodejs.org/dist/latest-v14.x/docs/api/index.html
+[Node.js assert]: https://nodejs.org/docs/latest-v14.x/api/all.html#assert_assert
+[Node.js changelog]: https://github.com/nodejs/node/blob/master/CHANGELOG.md
+[Node.js http]: https://nodejs.org/dist/latest-v14.x/docs/api/all.html#http_http
+[node-postgres]: https://node-postgres.com/
+[node_modules]: https://docs.npmjs.com/cli/v6/configuring-npm/folders#node-modules
 [NOT NULL]: https://www.postgresql.org/docs/13/ddl-constraints.html#id-1.5.4.6.6
 [now()]: https://www.postgresql.org/docs/13/functions-datetime.html#FUNCTIONS-DATETIME-CURRENT
 [NPM]: https://www.npmjs.com/get-npm
@@ -977,30 +1815,48 @@ TODO
 [npm install]: https://docs.npmjs.com/cli/v6/commands/npm-install
 [npmjs.com]: https://www.npmjs.com/
 [NVM]: https://github.com/nvm-sh/nvm
+[objects]: https://developer.mozilla.org/en-US/docs/Learn/JavaScript/Objects/Basics
 [open source]: https://en.wikipedia.org/wiki/Open-source_software
 [package.json]: https://docs.npmjs.com/cli/v6/configuring-npm/package-json
 [PGWeb]: https://sosedoff.github.io/pgweb/
 [postgres:13-alpine]: https://hub.docker.com/_/postgres
 [PostgreSQL]: https://www.postgresql.org/docs/13/index.html
+[PowerShell]: https://docs.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_environment_variables?view=powershell-7.1
 [PRIMARY KEY]: https://www.postgresql.org/docs/13/ddl-constraints.html#DDL-CONSTRAINTS-PRIMARY-KEYS
+[Promise]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise
 [psql]: https://www.postgresql.org/docs/13/app-psql.html
 [pull request]: https://git-scm.com/docs/git-request-pull
 [React]: https://reactjs.org/
+[refactor]: https://en.wikipedia.org/wiki/Code_refactoring
 [relational database]: https://en.wikipedia.org/wiki/Relational_database
+[req.url]: https://nodejs.org/dist/latest-v14.x/docs/api/all.html#http2_request_url
+[response body]: https://developer.mozilla.org/en-US/docs/Web/HTTP/Messages#body_2
+[response header]: https://developer.mozilla.org/en-US/docs/Glossary/Response_header
 [REST]: https://en.wikipedia.org/wiki/Representational_state_transfer
+[reverse proxy server]: https://www.nginx.com/resources/glossary/reverse-proxy-vs-load-balancer/
 [RTFM]: https://en.wikipedia.org/wiki/RTFM
+[scope]: https://developer.mozilla.org/en-US/docs/Glossary/Scope
 [semantic versioning]: https://docs.npmjs.com/about-semantic-versioning
 [sequence generator]: https://www.postgresql.org/docs/13/sql-createsequence.html
 [SERIAL]: https://www.postgresql.org/docs/13/datatype-numeric.html#DATATYPE-SERIAL
+[server.on]: https://nodejs.org/dist/latest-v14.x/docs/api/all.html#events_emitter_on_eventname_listener
+[server.listen]: https://nodejs.org/dist/latest-v14.x/docs/api/all.html#net_server_listen
 [session management]: https://en.wikipedia.org/wiki/Session_(computer_science)#Session_management
+[setHeader]: https://nodejs.org/dist/latest-v14.x/docs/api/all.html#http_response_setheader_name_value
 [setting up Git]: https://docs.github.com/en/github/getting-started-with-github/set-up-git#setting-up-git
 [shell]: https://en.wikipedia.org/wiki/Shell_(computing)
 [sosedoff/pgweb]: https://hub.docker.com/r/sosedoff/pgweb/
+[source code]: https://en.wikipedia.org/wiki/Source_code
 [SQL]: https://en.wikipedia.org/wiki/SQL
+[string]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String
 [Terminal Emulator (WebStorm)]: https://www.jetbrains.com/help/webstorm/terminal-emulator.html
+[testing asynchronous code]: https://jestjs.io/docs/asynchronous
 [TEXT]: https://www.postgresql.org/docs/13/datatype-character.html
 [TIMESTAMP]: https://www.postgresql.org/docs/13/datatype-datetime.html
+[toHaveBeenCalledWith]: https://jestjs.io/docs/expect#tohavebeencalledwitharg1-arg2-
 [trigger function]: https://www.postgresql.org/docs/13/plpgsql-trigger.html
+[try...catch]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/try...catch
+[undefined]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/undefined
 [UNIQUE]: https://www.postgresql.org/docs/13/ddl-constraints.html#DDL-CONSTRAINTS-UNIQUE-CONSTRAINTS
 [UPDATE]: https://www.postgresql.org/docs/13/sql-update.html
 [user registration]: https://en.wikipedia.org/wiki/Registered_user
@@ -1008,7 +1864,10 @@ TODO
 [VCS]: https://en.wikipedia.org/wiki/Version_control
 [virtual machine]: https://en.wikipedia.org/wiki/Virtual_machine
 [Visual Studio Code]: https://code.visualstudio.com/
+[Visual Studio Code: Node.js debugging]: https://code.visualstudio.com/docs/nodejs/nodejs-debugging
 [Vue.js]: https://vuejs.org/
 [web server]: https://en.wikipedia.org/wiki/Web_server
 [WebStorm]: https://www.jetbrains.com/webstorm/
+[WebStorm: Running and debugging Node.js]: https://www.jetbrains.com/help/webstorm/running-and-debugging-node-js.html
+[writeHead]: https://nodejs.org/dist/latest-v14.x/docs/api/all.html#http_response_writehead_statuscode_statusmessage_headers
 [YAML]: https://en.wikipedia.org/wiki/YAML
