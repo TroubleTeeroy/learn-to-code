@@ -26,8 +26,12 @@ server.on('listening', () => {
     console.log(`Server listening at http://${host}:${port}`)
 })
 
-try {
-    server.listen(port, host)
-} catch(err) {
-    console.error(err, 'Error starting server')
+if (require.main === module) {
+    try {
+        server.listen(port, host)
+    } catch(err) {
+        console.error(err, 'Error starting server')
+    }
 }
+
+module.exports = router
