@@ -1,5 +1,7 @@
 const http = require('http')
 
+const router = require('./router')
+
 const host = process.env.APP_HOST || 'localhost'
 const port = process.env.APP_PORT || 8080
 
@@ -16,3 +18,5 @@ if (require.main === module) {
         console.error(err, 'Error starting server')
     }
 }
+
+modules.exports = server
