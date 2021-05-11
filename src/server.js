@@ -19,4 +19,4 @@ if (require.main === module) {
     }
 }
 
-modules.exports = server
+module.exports = server
