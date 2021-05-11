@@ -30,6 +30,7 @@ services:
 
   server:
     build: .
+    command: [ "node_modules/.bin/nodemon", "src/server.js" ]
     restart: unless-stopped
     environment:
       - APP_HOST=server
